@@ -1,0 +1,99 @@
+version: '3.9'
+
+services:
+  de_mysql:
+    image: mysql:8.0
+    container_name: de_mysql
+    ports:
+      - 3306:3306
+    volumes:
+      - ./storage/mysql_data:/var/lib/mysql
+      - ./sql_scripts.d:/docker-entrypoint-initdb.d
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --local_infile=true --max_allowed_packet=256M
+    env_file:
+      - env
+    networks:
+      - de_network
+      # - de_py_network
+
+  de_psql:
+    image: postgres:15
+    container_name: de_psql
+    volumes:
+      - ./storage/psql_data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    env_file:
+      - env
+    networks:
+      - de_network
+
+  # Pipelines
+  elt_pipeline:
+    build:
+      context: ./elt_pipeline
+      dockerfile: ./Dockerfile
+    container_name: elt_pipeline
+    image: elt_pipeline:latest
+    volumes:
+      - ./elt_pipeline:/opt/dagster/app
+      - ./dataset_preprocessing:/opt/dagster/dataset_preprocessing
+      - ./tmp:/opt/dagster/tmp
+      - C:/Users/LENOVO/.kaggle:/root/.kaggle
+      # - ./storage/notebook:/opt/dagster/notebook
+    env_file:
+      - env
+    networks:
+      - de_network
+
+  # Dagster
+  de_dagster:
+    build:
+      context: ./dagster/
+    container_name: de_dagster
+    image: de_dagster
+
+  de_dagster_dagit:
+    image: de_dagster:latest
+    entrypoint:
+      - dagit
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3001"
+      - -w
+      - workspace.yaml
+    container_name: de_dagster_dagit
+    expose:
+      - "3001"
+    ports:
+      - "3001:3001"
+    volumes: # Make docker client accessible so we can terminate containers from dagit
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./dagster_home:/opt/dagster/dagster_home
+    env_file:
+      - env
+    networks:
+      - de_network
+
+  de_dagster_daemon:
+    image: de_dagster:latest
+    entrypoint:
+      - dagster-daemon
+      - run
+    container_name: de_dagster_daemon
+    volumes: # Make docker client accessible so we can launch containers using host docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./dagster_home:/opt/dagster/dagster_home
+    env_file:
+      - env
+    networks:
+      - de_network
+
+networks:
+  de_network:
+    driver: bridge
+    name: de_network
+  # de_py_network:
+  #   driver: bridge
+  #   name: de_py_network
