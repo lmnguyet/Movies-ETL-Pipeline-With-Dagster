@@ -1,13 +1,13 @@
-MOVIES ELT PIPELINE
+# MOVIES ELT PIPELINE
 
-#	Tools
+##	Tools
 
 Docker, Dagster, PySpark
 
-# Data warehouse
+## Data warehouse
 
 MySQL, PostgreSQL, Azure Blob Storage
 
-#	Main tasks
+##	Main tasks
 
 Ingest data from Web API and local databases, ingest into 3 layers to clean and generate useful data.
